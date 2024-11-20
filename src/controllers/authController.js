@@ -33,23 +33,20 @@ const signup = async (req, res) => {
 
     // Send verification email
     const verificationLink = `${process.env.BASE_URL}/auth/verify-email?token=${token}`;
-    console.log("verificationLink", verificationLink);
     
     await sendEmail(
       email,
       "Verify Your Email",
       `Click here to verify: ${verificationLink}`
-    );  
-    console.log("email", email);
-    
+    );      
 
-    res
+    return res
       .status(201)
       .json({ message: "Signup successful. Verification email sent." });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
-};
+};  
 
 const verifyEmail = async (req, res) => {
   try {
@@ -65,9 +62,9 @@ const verifyEmail = async (req, res) => {
     user.isVerified = true;
     await user.save();
 
-    res.status(200).json({ message: "Email verified successfully" });
+    return res.status(200).json({ message: "Email verified successfully" });
   } catch (err) {
-    res.status(400).json({ message: "Invalid or expired token" });
+    return res.status(400).json({ message: "Invalid or expired token" });
   }
 };
 
@@ -91,9 +88,9 @@ const login = async (req, res) => {
     // Generate token
     const token = generateToken({ id: user._id, role: user.role });
 
-    res.status(200).json({ message: "Login successful", token });
+    return res.status(200).json({ message: "Login successful", token });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -113,9 +110,9 @@ const forgetPassword = async (req, res) => {
       "Reset Your Password",
       `Click here to reset: ${resetLink}`
     );
-    res.status(200).json({ message: "Password reset link sent to email" });
+    return res.status(200).json({ message: "Password reset link sent to email" });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -138,9 +135,9 @@ const resetPassword = async (req, res) => {
     user.password = await hashPassword(password);
     await user.save();
 
-    res.status(200).json({ message: "Password reset successful" });
+    return res.status(200).json({ message: "Password reset successful" });
   } catch (err) {
-    res.status(400).json({ message: "Invalid or expired token" });
+    return res.status(400).json({ message: "Invalid or expired token" });
   }
 };
 

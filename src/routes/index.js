@@ -1,14 +1,11 @@
 const express = require("express");
-const authRoutes = require("./authRoute");
-// const userRoutes = require("./user");
-// const examRoutes = require("./exam");
-// const resultRoutes = require("./result");
-
+const authRoutes = require("./authRoutes");
+const teacherRoutes = require("./teacherRoutes");
+const studentRoutes = require("./studentRoutes");
 const router = express.Router();
 
 router.use("/auth", authRoutes);
-// router.use("/user", userRoutes);
-// router.use("/exam", examRoutes);
-// router.use("/result", resultRoutes);
+router.use("/teacher", teacherRoutes);
+router.use("/student", studentRoutes);
 
 module.exports = router;
