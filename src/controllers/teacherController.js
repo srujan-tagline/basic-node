@@ -1,6 +1,7 @@
 const User = require("../models/userModel");
 const Exam = require("../models/examModel")
 const Result = require("../models/resultModel");
+const mongoose = require("mongoose");
 
 // List all students
 const listAllStudents = async (req, res) => {
@@ -59,45 +60,59 @@ const listExamGivenStudents = async (req, res) => {
 
 // Get detailed information of a student
 const getStudentDetails = async (req, res) => {
-    try {
-      const { studentId } = req.params;
+  try {
+    const { studentId } = req.params;
 
-      const studentDetails = await User.findById(studentId).select("-password");
-      if (!studentDetails) {
-        return res.status(404).json({ message: "Student not found." });
-      }
-
-      const results = await Result.aggregate([
-        {
-          $match: { studentId: mongoose.Types.ObjectId(studentId) },
-        },
-        {
-          $lookup: {
-            from: "exams",
-            localField: "examId",
-            foreignField: "_id",
-            as: "examDetails",
-          },
-        },
-        {
-          $unwind: "$examDetails",
-        },
-        {
-          $project: {
-            _id: 0,
-            examId: 1,
-            subjectName: "$examDetails.subjectName",
-            score: 1,
-            answers: 1,
-            rank: 1,
-          },
-        },
-      ]);
-
-      res.json({ studentDetails, results });
-    } catch (err) {
-      res.status(500).json({ error: "Failed to retrieve student details." });
+    // Fetch student details
+    const studentDetails = await User.findById(studentId).select("-password");
+    if (!studentDetails) {
+      return res.status(404).json({ message: "Student not found." });
     }
+
+    // Fetch results
+    const results = await Result.aggregate([
+      {
+        $match: { studentId: new mongoose.Types.ObjectId(studentId) },
+      },
+      {
+        $lookup: {
+          from: "exams",
+          localField: "examId",
+          foreignField: "_id",
+          as: "examDetails",
+        },
+      },
+      {
+        $unwind: {
+          path: "$examDetails",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          examId: 1,
+          subjectName: "$examDetails.subjectName",
+          score: 1,
+          answers: 1,
+          rank: 1,
+          status: 1,
+        },
+      },
+      {
+        $sort: { score: -1 }
+      },
+    ]);
+
+    return res.status(200).json({ studentDetails, givenExams: results });
+  } catch (err) {
+    return res
+      .status(500)
+      .json({
+        error: "Failed to retrieve student details.",
+        details: err.message,
+      });
+  }
 };
 
 // Create an exam
