@@ -89,9 +89,16 @@ const getStudentDetails = async (req, res) => {
           examId: 1,
           subjectName: "$examDetails.subjectName",
           score: 1,
-          answers: 1,
           rank: 1,
           status: 1,
+          questons: {
+            $zip: {
+              inputs: [
+                "$examDetails.questions.questionText",
+                "$answers.selectedOption",
+              ],
+            },
+          },
         },
       },
       {

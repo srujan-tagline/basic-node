@@ -11,7 +11,7 @@ const signup = async (req, res) => {
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(409).json({ message: "Email already in use" });
+      return res.status(400).json({ message: "Email already in use" });
     }
 
     const hashedPassword = await hashPassword(password);
@@ -100,6 +100,10 @@ const forgetPassword = async (req, res) => {
     const { email } = req.body;
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (!user.isVerified) {
+      return res.status(400).json({ message: "Email not verified" });
+    }
 
     const token = generateToken({ id: user._id }, "1h");
     // Send reset password email
