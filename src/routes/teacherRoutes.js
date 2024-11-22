@@ -1,21 +1,21 @@
 const express = require("express");
 const {
-    listAllStudents,
-    listExamGivenStudents,
-    getStudentDetails,
-    listExams,
-    getExamDetails,
-    createExam,
-    editExam,
-    deleteExam,
+  listAllStudents,
+  listExamGivenStudents,
+  getStudentDetails,
+  listExams,
+  getExamDetails,
+  createExam,
+  editExam,
+  deleteExam,
 } = require("../controllers/teacherController");
 const {
-    authenticateUser,
-    authorizeTeacher,
+  authenticateUser,
+  authorizeTeacher,
 } = require("../middlewares/authMiddleware");
 const {
-    createExamSchema,
-    updateExamSchema
+  createExamSchema,
+  updateExamSchema,
 } = require("../validators/examValidation");
 const validate = require("../middlewares/validate");
 
@@ -23,7 +23,12 @@ const router = express.Router();
 
 // Teacher dashboard routes
 router.get("/students", authenticateUser, authorizeTeacher, listAllStudents);
-router.get("/students/exam-given", authenticateUser, authorizeTeacher, listExamGivenStudents);
+router.get(
+  "/students/exam-given",
+  authenticateUser,
+  authorizeTeacher,
+  listExamGivenStudents
+);
 router.get(
   "/students/:studentId",
   authenticateUser,

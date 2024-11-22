@@ -1,9 +1,8 @@
 const User = require("../models/userModel");
-const Exam = require("../models/examModel")
+const Exam = require("../models/examModel");
 const Result = require("../models/resultModel");
 const mongoose = require("mongoose");
 
-// List all students
 const listAllStudents = async (req, res) => {
   try {
     const students = await User.find({ role: "student" }).select("-password");
@@ -13,63 +12,59 @@ const listAllStudents = async (req, res) => {
   }
 };
 
-// List students who have given exams
 const listExamGivenStudents = async (req, res) => {
-    try {
-      const students = await Result.aggregate([
-        {
-          $group: {
-            _id: "$studentId",
-          },
+  try {
+    const students = await Result.aggregate([
+      {
+        $group: {
+          _id: "$studentId",
         },
-        {
-          $lookup: {
-            from: "users",
-            localField: "_id",
-            foreignField: "_id",
-            as: "studentDetails",
-          },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "studentDetails",
         },
-        {
-          $unwind: "$studentDetails",
+      },
+      {
+        $unwind: "$studentDetails",
+      },
+      {
+        $project: {
+          _id: 0,
+          studentId: "$studentDetails._id",
+          name: "$studentDetails.name",
+          email: "$studentDetails.email",
+          role: "$studentDetails.role",
         },
-        {
-          $project: {
-            _id: 0,
-            studentId: "$studentDetails._id",
-            name: "$studentDetails.name",
-            email: "$studentDetails.email",
-            role: "$studentDetails.role",
-          },
-        },
-      ]);
+      },
+    ]);
 
-      if (!students.length) {
-        return res
-          .status(404)
-          .json({ message: "No students have given any exams yet." });
-      }
-
-      return res.json({ students });
-    } catch (err) {
+    if (!students.length) {
       return res
-        .status(500)
-        .json({ error: "Failed to retrieve students who have given exams." });
+        .status(404)
+        .json({ message: "No students have given any exams yet." });
     }
+
+    return res.json({ students });
+  } catch (err) {
+    return res
+      .status(500)
+      .json({ error: "Failed to retrieve students who have given exams." });
+  }
 };
 
-// Get detailed information of a student
 const getStudentDetails = async (req, res) => {
   try {
     const { studentId } = req.params;
 
-    // Fetch student details
     const studentDetails = await User.findById(studentId).select("-password");
     if (!studentDetails) {
       return res.status(404).json({ message: "Student not found." });
     }
 
-    // Fetch results
     const results = await Result.aggregate([
       {
         $match: { studentId: new mongoose.Types.ObjectId(studentId) },
@@ -100,42 +95,39 @@ const getStudentDetails = async (req, res) => {
         },
       },
       {
-        $sort: { score: -1 }
+        $sort: { score: -1 },
       },
     ]);
 
     return res.status(200).json({ studentDetails, givenExams: results });
   } catch (err) {
-    return res
-      .status(500)
-      .json({
-        error: "Failed to retrieve student details.",
-        details: err.message,
-      });
+    return res.status(500).json({
+      error: "Failed to retrieve student details.",
+      details: err.message,
+    });
   }
 };
 
-// Create an exam
 const createExam = async (req, res) => {
-     try {
-       const { subjectName, questions } = req.body;
+  try {
+    const { subjectName, questions } = req.body;
 
-       const existingExam = await Exam.findOne({ subjectName });
-       if (existingExam)
-         return res.status(400).json({ error: "Subject name must be unique." });
+    const existingExam = await Exam.findOne({ subjectName });
+    if (existingExam) {
+      return res.status(400).json({ error: "Subject name must be unique." });
+    }
 
-       const newExam = new Exam({ subjectName, questions });
-       await newExam.save();
+    const newExam = new Exam({ subjectName, questions });
+    await newExam.save();
 
-       return res
-         .status(201)
-         .json({ message: "Exam created successfully.", exam: newExam });
-     } catch (err) {
-       return res.status(500).json({ error: "Failed to create exam." });
-     }
+    return res
+      .status(201)
+      .json({ message: "Exam created successfully.", exam: newExam });
+  } catch (err) {
+    return res.status(500).json({ error: "Failed to create exam." });
+  }
 };
 
-// List all exams created by the teacher
 const listExams = async (req, res) => {
   try {
     const exams = await Exam.find({}).sort("subjectName");
@@ -145,13 +137,14 @@ const listExams = async (req, res) => {
   }
 };
 
-// Get detailed information of an exam
 const getExamDetails = async (req, res) => {
   try {
     const { examId } = req.params;
     const exam = await Exam.findById(examId);
 
-    if (!exam) return res.status(404).json({ error: "Exam not found." });
+    if (!exam) {
+      return res.status(404).json({ error: "Exam not found." });
+    }
 
     return res.json({ exam });
   } catch (err) {
@@ -159,19 +152,20 @@ const getExamDetails = async (req, res) => {
   }
 };
 
-// Edit an exam
 const editExam = async (req, res) => {
   try {
     const { examId } = req.params;
     const { subjectName, questions } = req.body;
 
     const updatedExam = await Exam.findOneAndUpdate(
-      {_id: examId},
+      { _id: examId },
       { $set: { subjectName, questions } },
       { new: true }
     );
-    
-    if (!updatedExam) return res.status(404).json({ error: "Exam not found." });
+
+    if (!updatedExam) {
+      return res.status(404).json({ error: "Exam not found." });
+    }
 
     return res.json({
       message: "Exam updated successfully.",
@@ -182,17 +176,18 @@ const editExam = async (req, res) => {
   }
 };
 
-// Delete an exam
 const deleteExam = async (req, res) => {
   try {
     const { examId } = req.params;
 
     const deletedExam = await Exam.findOneAndUpdate(
-      {_id: examId},
+      { _id: examId },
       { $set: { isDeleted: true } },
       { new: true }
     );
-    if (!deletedExam) return res.status(404).json({ error: "Exam not found." });
+    if (!deletedExam) {
+      return res.status(404).json({ error: "Exam not found." });
+    }
 
     return res.json({ message: "Exam deleted successfully." });
   } catch (err) {

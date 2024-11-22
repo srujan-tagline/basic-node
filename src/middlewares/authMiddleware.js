@@ -3,12 +3,16 @@ const User = require("../models/userModel");
 
 const authenticateUser = async (req, res, next) => {
   const token = req.header("Authorization")?.replace("Bearer ", "");
-  if (!token) return res.status(401).json({ error: "Unauthorized access." });
+  if (!token) {
+    return res.status(401).json({ error: "Unauthorized access." });
+  }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findById(decoded.id);
-    if (!user) return res.status(404).json({ error: "User not found." });
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
 
     req.user = user;
     next();
@@ -31,4 +35,4 @@ const authorizeStudent = (req, res, next) => {
   next();
 };
 
-module.exports = {authenticateUser, authorizeTeacher, authorizeStudent};
+module.exports = { authenticateUser, authorizeTeacher, authorizeStudent };

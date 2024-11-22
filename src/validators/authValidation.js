@@ -17,7 +17,7 @@ const emailVerificationSchema = Joi.object({
 });
 
 module.exports = {
-    signupSchema,
-    loginSchema,
-    emailVerificationSchema
-}
+  signupSchema,
+  loginSchema,
+  emailVerificationSchema,
+};

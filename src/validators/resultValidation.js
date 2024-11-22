@@ -17,4 +17,4 @@ const submitExamSchema = Joi.object({
     .required(),
 });
 
-module.exports = {startExamSchema, submitExamSchema};
+module.exports = { startExamSchema, submitExamSchema };

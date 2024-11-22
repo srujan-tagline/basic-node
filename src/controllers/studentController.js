@@ -1,8 +1,8 @@
 const Exam = require("../models/examModel");
-const Result = require("../models/resultModel")
+const Result = require("../models/resultModel");
 const User = require("../models/userModel");
 const sendEmail = require("../utils/sendEmail");
-const {hashPassword} = require("../utils/hashPassword");
+const { hashPassword } = require("../utils/hashPassword");
 const mongoose = require("mongoose");
 
 const startExam = async (req, res) => {
@@ -10,16 +10,15 @@ const startExam = async (req, res) => {
     const { subjectName } = req.body;
     const studentId = req.user._id;
 
-    // Validate if the exam exists
     const exam = await Exam.findOne(
       { subjectName, isDeleted: false },
       { "questions.correctAnswer": 0 }
     );
+
     if (!exam) {
       return res.status(404).json({ message: "Exam not found." });
     }
 
-    // Check if the student already gave this exam
     const existingResult = await Result.findOne({
       examId: exam._id,
       studentId,
@@ -35,7 +34,9 @@ const startExam = async (req, res) => {
       questions: exam.questions,
     });
   } catch (error) {
-    return res.status(500).json({ message: "Server error.", error: error.message });
+    return res
+      .status(500)
+      .json({ message: "Server error.", error: error.message });
   }
 };
 
@@ -45,7 +46,6 @@ const submitExam = async (req, res) => {
     const studentId = req.user._id;
     const studentEmail = req.user.email;
 
-    // Validate if the exam exists
     const exam = await Exam.findById(examId);
     if (!exam) {
       return res.status(404).json({ message: "Exam not found." });
@@ -61,7 +61,6 @@ const submitExam = async (req, res) => {
         .json({ message: "You have already submit this exam." });
     }
 
-    // Calculate score
     let score = 0;
     for (const answer of answers) {
       const question = exam.questions.id(answer.questionId);
@@ -69,23 +68,18 @@ const submitExam = async (req, res) => {
         return res.status(400).json({ message: "Invalid question ID." });
       }
 
-      // Ensure the selected option is valid
       if (!question.options.includes(answer.selectedOption)) {
         return res.status(400).json({
           message: `Invalid selected option for question: ${question.questionText}`,
         });
       }
 
-      // Check if the selected option is correct
       if (question.correctAnswer === answer.selectedOption) {
         score += 1;
       }
     }
 
-    // Fetch existing results for the same exam to calculate rank
     const existingResults = await Result.find({ examId }).sort({ score: -1 });
-
-    // Determine the student's rank
     let rank = 1;
 
     for (const result of existingResults) {
@@ -95,16 +89,12 @@ const submitExam = async (req, res) => {
         rank = result.rank;
         break;
       } else if (score > result.score) {
-        await Result.updateOne(
-          { _id: result._id }, 
-          { $inc: { rank: 1 } }
-        );
-      } else{
+        await Result.updateOne({ _id: result._id }, { $inc: { rank: 1 } });
+      } else {
         break;
       }
     }
 
-    // Save result with "in-progress" status
     const result = new Result({
       examId,
       studentId,
@@ -127,7 +117,9 @@ const submitExam = async (req, res) => {
 
     return res.status(200).json({ message: "Exam submitted successfully." });
   } catch (error) {
-    return res.status(500).json({ message: "Server error.", error: error.message });
+    return res
+      .status(500)
+      .json({ message: "Server error.", error: error.message });
   }
 };
 
@@ -139,7 +131,7 @@ const getGivenExams = async (req, res) => {
       {
         $match: {
           studentId: new mongoose.Types.ObjectId(studentId),
-          status: "completed"
+          status: "completed",
         },
       },
       {
@@ -199,11 +191,11 @@ const editProfile = async (req, res) => {
           .json({ message: "Email already in use by another account." });
       }
     }
-    
+
     let updatedData = { name, email };
-     if (password) {
-       updatedData.password = await hashPassword(password);
-     }
+    if (password) {
+      updatedData.password = await hashPassword(password);
+    }
 
     const updatedUser = await User.findOneAndUpdate(
       { _id: studentId },
@@ -212,12 +204,12 @@ const editProfile = async (req, res) => {
     );
 
     if (!updatedUser) {
-      return res.status(404).json({ message: "Student not found." });
+      return res.status(404).json({ message: "Student not found" });
     }
 
     return res
       .status(200)
-      .json({ message: "Profile updated successfully.", user: updatedUser });
+      .json({ message: "Profile updated successfully", user: updatedUser });
   } catch (error) {
     return res.status(500).json({
       message: "Failed to update profile.",
@@ -226,4 +218,4 @@ const editProfile = async (req, res) => {
   }
 };
 
-module.exports = {startExam, submitExam, getGivenExams, editProfile};
+module.exports = { startExam, submitExam, getGivenExams, editProfile };

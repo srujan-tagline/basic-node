@@ -4,13 +4,13 @@ const {
   startExam,
   submitExam,
   getGivenExams,
-  editProfile
+  editProfile,
 } = require("../controllers/studentController");
 const {
   startExamSchema,
   submitExamSchema,
 } = require("../validators/resultValidation");
-const {updateProfileSchema} = require("../validators/userValidation")
+const { updateProfileSchema } = require("../validators/userValidation");
 const validate = require("../middlewares/validate");
 const {
   authenticateUser,
@@ -34,6 +34,12 @@ router.post(
 
 router.get("/given-exams", authenticateUser, authorizeStudent, getGivenExams);
 
-router.put("/edit-profile", authenticateUser, authorizeStudent, validate(updateProfileSchema), editProfile);
+router.put(
+  "/edit-profile",
+  authenticateUser,
+  authorizeStudent,
+  validate(updateProfileSchema),
+  editProfile
+);
 
 module.exports = router;

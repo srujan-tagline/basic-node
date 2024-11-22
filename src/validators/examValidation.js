@@ -27,4 +27,4 @@ const updateExamSchema = Joi.object({
     .optional(),
 });
 
-module.exports = {createExamSchema, updateExamSchema}
+module.exports = { createExamSchema, updateExamSchema };
