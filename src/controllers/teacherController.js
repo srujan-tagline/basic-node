@@ -5,7 +5,9 @@ const mongoose = require("mongoose");
 
 const listAllStudents = async (req, res) => {
   try {
-    const students = await User.find({ role: "student" }).select("-password");
+    const students = await User.find({ role: "student" })
+      .select("-password")
+      .sort({ createdAt: -1 });
     return res.json({ students });
   } catch (err) {
     return res.status(500).json({ error: "Failed to retrieve students." });
@@ -88,17 +90,18 @@ const getStudentDetails = async (req, res) => {
           _id: 0,
           examId: 1,
           subjectName: "$examDetails.subjectName",
-          score: 1,
-          rank: 1,
-          status: 1,
-          questons: {
-            $zip: {
-              inputs: [
-                "$examDetails.questions.questionText",
-                "$answers.selectedOption",
+          result: {
+            totalQuestions: { $size: "$examDetails.questions" },
+            score: "$score",
+            percentage: {
+              $multiply: [
+                { $divide: ["$score", { $size: "$examDetails.questions" }] },
+                100,
               ],
             },
           },
+          rank: 1,
+          status: 1,
         },
       },
       {
@@ -106,7 +109,12 @@ const getStudentDetails = async (req, res) => {
       },
     ]);
 
-    return res.status(200).json({ studentDetails, givenExams: results });
+    const response = {
+      ...studentDetails.toObject(),
+      givenExams: results,
+    };
+
+    return res.status(200).json(response);
   } catch (err) {
     return res.status(500).json({
       error: "Failed to retrieve student details.",

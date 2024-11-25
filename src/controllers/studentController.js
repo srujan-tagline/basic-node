@@ -95,6 +95,10 @@ const submitExam = async (req, res) => {
       }
     }
 
+    if (!(exam.questions.length === answers.length)) {
+      return res.status(400).json({message: "Please attempt all the questions"})
+    }
+
     const result = new Result({
       examId,
       studentId,

@@ -9,6 +9,10 @@ const authenticateUser = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.purpose !== "login") {
+      return res.status(403).json({ message: "Invalid token for this action" });
+    }
+
     const user = await User.findById(decoded.id);
     if (!user) {
       return res.status(404).json({ error: "User not found." });

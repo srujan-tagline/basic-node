@@ -9,6 +9,7 @@ const {
   editExam,
   deleteExam,
 } = require("../controllers/teacherController");
+const { uploadImage } = require("../controllers/authController");
 const {
   authenticateUser,
   authorizeTeacher,
@@ -17,6 +18,7 @@ const {
   createExamSchema,
   updateExamSchema,
 } = require("../validators/examValidation");
+const upload = require("../middlewares/upload");
 const validate = require("../middlewares/validate");
 
 const router = express.Router();
@@ -58,5 +60,12 @@ router.put(
   editExam
 );
 router.delete("/exams/:examId", authenticateUser, authorizeTeacher, deleteExam);
+router.post(
+  "/upload-profile-picture",
+  authenticateUser,
+  authorizeTeacher,
+  upload.single("profilePicture"),
+  uploadImage
+);
 
 module.exports = router;
