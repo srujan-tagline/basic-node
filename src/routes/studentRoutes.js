@@ -12,7 +12,6 @@ const {
   submitExamSchema,
 } = require("../validators/resultValidation");
 const { updateProfileSchema } = require("../validators/userValidation");
-// const upload = require("../middlewares/upload");
 const upload = require("../middlewares/cloudinaryUpload");
 const validate = require("../middlewares/validate");
 const {

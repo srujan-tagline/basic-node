@@ -18,7 +18,7 @@ const {
   createExamSchema,
   updateExamSchema,
 } = require("../validators/examValidation");
-const upload = require("../middlewares/upload");
+const upload = require("../middlewares/cloudinaryUpload");
 const validate = require("../middlewares/validate");
 
 const router = express.Router();

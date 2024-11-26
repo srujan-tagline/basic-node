@@ -4,14 +4,8 @@ const User = require("../models/userModel");
 const sendEmail = require("../utils/sendEmail");
 const { generateToken } = require("../utils/generateToken");
 const { hashPassword } = require("../utils/hashPassword");
-const cloudinary = require("cloudinary").v2;
+const cloudinary = require("../../config/cloudinary");
 require("dotenv").config();
-
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 const signup = async (req, res) => {
   try {
@@ -172,17 +166,21 @@ const resetPassword = async (req, res) => {
 const uploadImage = async (req, res) => {
   try {
     const userId = req.user._id;
-    const profilePictureUrl = req.file.path;
 
-    console.log("req.file", req.file);
+    const user = await User.findById(userId);
+    
+    if(user.profilePicturePublicId){
+      await cloudinary.uploader.destroy(user.profilePicturePublicId );
+    }
+
+    const profilePicture = req.file.path;
+    const profilePicturePublicId = req.file.filename;
     
     const updatedUser = await User.findOneAndUpdate(
       { _id: userId },
-      { profilePicture: profilePictureUrl },
+      { profilePicture, profilePicturePublicId},
       { new: true }
     );
-    console.log("profilepicture", profilePictureUrl);
-    console.log("updateduser", updatedUser);
 
     if (!updatedUser) {
       return res.status(404).json({message: "User not found"})
@@ -190,7 +188,7 @@ const uploadImage = async (req, res) => {
 
     return res.status(200).json({
       message: "Profile picture updated successfully.",
-      profilePicture: updatedUser.profilePicture,
+      user: updatedUser
     });
   } catch (err) {
     return res.status(500).json({

@@ -24,10 +24,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    profilePicture:{
+    profilePicture: {
       type: String,
-      default: ""
-    }
+    },
+    profilePicturePublicId: {
+      type: String,
+    },
   },
   { timestamps: true }
 );
