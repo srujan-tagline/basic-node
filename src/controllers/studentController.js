@@ -1,9 +1,7 @@
 const Exam = require("../models/examModel");
 const Result = require("../models/resultModel");
 const User = require("../models/userModel");
-const sendEmail = require("../utils/sendEmail");
 const { hashPassword } = require("../utils/hashPassword");
-const schedule = require("node-schedule");
 const mongoose = require("mongoose");
 
 const startExam = async (req, res) => {
@@ -45,7 +43,6 @@ const submitExam = async (req, res) => {
   try {
     const { examId, answers } = req.body;
     const studentId = req.user._id;
-    const studentEmail = req.user.email;
 
     const exam = await Exam.findById(examId);
     if (!exam) {
@@ -110,36 +107,6 @@ const submitExam = async (req, res) => {
       rank,
     });
     await result.save();
-
-    // setTimeout(async () => {
-    //   result.status = "completed";
-    //   await result.save();
-
-    //   await sendEmail(
-    //     studentEmail,
-    //     "Your Exam Result",
-    //     `You scored ${score} in the ${exam.subjectName} exam.`
-    //   );
-    // }, 20000);
-
-    // const emailJob = schedule.scheduleJob(
-    //   new Date(Date.now() + 5 * 60 * 1000),
-    //   async () => {
-    //     try {
-    //       result.status = "completed";
-    //       await result.save();
-
-    //       await sendEmail(
-    //         studentEmail,
-    //         "Your Exam Result",
-    //         `You scored ${score} in the ${exam.subjectName} exam.`
-    //       );
-    //       console.log(`Email sent to ${studentEmail}`);
-    //     } catch (err) {
-    //       console.error("Failed to send email:", err.message);
-    //     }
-    //   }
-    // );
 
     return res.status(200).json({ message: "Exam submitted successfully." });
   } catch (error) {
@@ -245,66 +212,3 @@ const editProfile = async (req, res) => {
 };
 
 module.exports = { startExam, submitExam, getGivenExams, editProfile };
-
-
-
-
-// const schedule = require("node-schedule");
-// const Result = require("./models/Result"); // Adjust path as needed
-// const sendEmail = require("./utils/sendEmail");
-
-// async function processPendingEmails() {
-//   try {
-//     // Fetch pending results
-//     const pendingResults = await Result.find({ status: "pending" });
-
-//     pendingResults.forEach((result) => {
-//       const { _id, studentId, examId, createdAt } = result;
-//       const sendTime = new Date(createdAt.getTime() + 2 * 60 * 60 * 1000); // Add 2 hours
-
-//       if (sendTime > new Date()) {
-//         // Schedule email if time is in the future
-//         schedule.scheduleJob(sendTime, async () => {
-//           try {
-//             // Send email
-//             const student = await User.findById(studentId); // Adjust user model path
-//             const exam = await Exam.findById(examId); // Adjust exam model path
-//             await sendEmail(
-//               student.email,
-//               "Your Exam Result",
-//               `You scored ${result.score} in the ${exam.subjectName} exam.`
-//             );
-
-//             // Update result status
-//             result.status = "completed";
-//             await result.save();
-//           } catch (error) {
-//             console.error(`Failed to send email for result ${_id}:`, error);
-//           }
-//         });
-//       } else {
-//         console.log(
-//           `Skipping email for result ${_id}: Send time already passed.`
-//         );
-//       }
-//     });
-//   } catch (error) {
-//     console.error("Error processing pending emails:", error);
-//   }
-// }
-
-// // Start scheduler on server start
-// function startScheduler() {
-//   console.log("Starting email scheduler...");
-//   processPendingEmails();
-
-//   // Check every 10 minutes for new results
-//   schedule.scheduleJob("*/10 * * * *", () => {
-//     console.log("Rechecking pending emails...");
-//     processPendingEmails();
-//   });
-// }
-
-// module.exports = startScheduler;
-
-
