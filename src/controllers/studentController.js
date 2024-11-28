@@ -76,7 +76,7 @@ const submitExam = async (req, res) => {
         score += 1;
       }
     }
-
+    
     const existingResults = await Result.find({ examId }).sort({ score: -1 });
     let rank = 1;
 
@@ -99,14 +99,13 @@ const submitExam = async (req, res) => {
         .json({ message: "Please attempt all the questions" });
     }
 
-    const result = new Result({
+     await Result.create({
       examId,
       studentId,
       answers,
       score,
       rank,
     });
-    await result.save();
 
     return res.status(200).json({ message: "Exam submitted successfully." });
   } catch (error) {

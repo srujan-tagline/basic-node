@@ -18,15 +18,13 @@ const signup = async (req, res) => {
 
     const hashedPassword = await hashPassword(password);
 
-    const user = new User({
+     await User.create({
       name,
       email,
       password: hashedPassword,
       role,
       isVerified: false,
     });
-
-    await user.save();
 
     const token = generateToken({ email }, "1h", "verifyEmail");
     // Send verification email

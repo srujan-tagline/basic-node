@@ -8,7 +8,7 @@ const listAllStudents = async (req, res) => {
     const students = await User.find({ role: "student" })
       .select("-password")
       .sort({ createdAt: -1 });
-    return res.json({ students });
+    return res.json({ data:students });
   } catch (err) {
     return res.status(500).json({ error: "Failed to retrieve students." });
   }
@@ -132,8 +132,7 @@ const createExam = async (req, res) => {
       return res.status(400).json({ error: "Subject name must be unique." });
     }
 
-    const newExam = new Exam({ subjectName, questions });
-    await newExam.save();
+    const newExam = await Exam.create({ subjectName, questions });
 
     return res
       .status(201)
