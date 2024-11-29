@@ -42,6 +42,18 @@ const loginSchema = Joi.object({
   password: Joi.string().min(6).required(),
 });
 
+const changePasswordSchema = Joi.object({
+  email: Joi.string().email().required(),
+  oldPassword: Joi.string().required(),
+  newPassword: Joi.string().min(6).required(),
+  confirmPassword: Joi.string().required(),
+});
+
+const resetPasswordSchema = Joi.object({
+  newPassword: Joi.string().min(6).required(),
+  confirmPassword: Joi.string().required(),
+});
+
 const emailVerificationSchema = Joi.object({
   email: Joi.string().email().required(),
 });
@@ -49,5 +61,7 @@ const emailVerificationSchema = Joi.object({
 module.exports = {
   signupSchema,
   loginSchema,
+  changePasswordSchema,
+  resetPasswordSchema,
   emailVerificationSchema
 };

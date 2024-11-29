@@ -12,7 +12,7 @@ const {
 const { uploadImage } = require("../controllers/authController");
 const {
   authenticateUser,
-  authorizeTeacher,
+  authorizeRole
 } = require("../middlewares/authMiddleware");
 const {
   createExamSchema,
@@ -24,46 +24,46 @@ const validate = require("../middlewares/validate");
 const router = express.Router();
 
 // Teacher dashboard routes
-router.get("/students", authenticateUser, authorizeTeacher, listAllStudents);
+router.get("/students", authenticateUser, authorizeRole(["teacher"]), listAllStudents);
 router.get(
   "/students/exam-given",
   authenticateUser,
-  authorizeTeacher,
+  authorizeRole(["teacher"]),
   listExamGivenStudents
 );
 router.get(
   "/students/:studentId",
   authenticateUser,
-  authorizeTeacher,
+  authorizeRole(["teacher"]),
   getStudentDetails
 );
 
 router.post(
   "/exams",
   authenticateUser,
-  authorizeTeacher,
+  authorizeRole(["teacher"]),
   validate(createExamSchema),
   createExam
 );
-router.get("/exams", authenticateUser, authorizeTeacher, listExams);
+router.get("/exams", authenticateUser, authorizeRole(["teacher"]), listExams);
 router.get(
   "/exams/:examId",
   authenticateUser,
-  authorizeTeacher,
+  authorizeRole(["teacher"]),
   getExamDetails
 );
 router.put(
   "/exams/:examId",
   authenticateUser,
-  authorizeTeacher,
+  authorizeRole(["teacher"]),
   validate(updateExamSchema),
   editExam
 );
-router.delete("/exams/:examId", authenticateUser, authorizeTeacher, deleteExam);
+router.delete("/exams/:examId", authenticateUser, authorizeRole(["teacher"]), deleteExam);
 router.post(
   "/upload-profile-picture",
   authenticateUser,
-  authorizeTeacher,
+  authorizeRole(["teacher"]),
   upload.single("profilePicture"),
   uploadImage
 );

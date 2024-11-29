@@ -132,6 +132,16 @@ const createExam = async (req, res) => {
       return res.status(400).json({ error: "Subject name must be unique." });
     }
 
+    for (const question of questions) {
+      if(!question.options.includes(question.correctAnswer)){
+        return res
+          .status(400)
+          .json({
+            error: `Correct answer "${question.correctAnswer}" must be one of the options: ${question.options.join(", ")}.`,
+          });
+      }
+    }
+
     const newExam = await Exam.create({ subjectName, questions });
 
     return res

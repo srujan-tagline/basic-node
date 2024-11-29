@@ -5,10 +5,14 @@ const {
   login,
   forgetPassword,
   resetPassword,
+  changePassword,
+  resendVerificationEmail
 } = require("../controllers/authController");
 const {
   signupSchema,
   loginSchema,
+  changePasswordSchema,
+  resetPasswordSchema,
   emailVerificationSchema,
 } = require("../validators/authValidation");
 const validate = require("../middlewares/validate");
@@ -23,6 +27,8 @@ router.post(
   validate(emailVerificationSchema),
   forgetPassword
 );
-router.post("/reset-password", resetPassword);
+router.post("/reset-password", validate(resetPasswordSchema) ,resetPassword);
+router.post("/change-password", validate(changePasswordSchema) ,changePassword);
+router.post("/resend-verification-email", validate(emailVerificationSchema), resendVerificationEmail);
 
 module.exports = router;

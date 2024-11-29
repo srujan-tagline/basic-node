@@ -25,18 +25,17 @@ const authenticateUser = async (req, res, next) => {
   }
 };
 
-const authorizeTeacher = (req, res, next) => {
-  if (req.user.role !== "teacher") {
-    return res.status(403).json({ error: "Access denied. Teachers only." });
-  }
-  next();
+const authorizeRole = (roles) => {
+  return async (req, res, next) => {
+    if (roles.indexOf(req.user.role) > -1) {
+      next();
+    } else {
+      return res
+        .status(403)
+        .json({ error: `User's role ${req.user.role} is not authorized.` });
+    }
+  };
 };
 
-const authorizeStudent = (req, res, next) => {
-  if (req.user.role !== "student") {
-    return res.status(403).json({ error: "Access denied. Student only." });
-  }
-  next();
-};
-
-module.exports = { authenticateUser, authorizeTeacher, authorizeStudent };
+module.exports = { authenticateUser, authorizeRole };
+// exports.authenticateUser = authenticateUser; `

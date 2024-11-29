@@ -16,20 +16,20 @@ const upload = require("../middlewares/cloudinaryUpload");
 const validate = require("../middlewares/validate");
 const {
   authenticateUser,
-  authorizeStudent,
+  authorizeRole
 } = require("../middlewares/authMiddleware");
 
 router.post(
   "/exams/start",
   authenticateUser,
-  authorizeStudent,
+  authorizeRole(["student"]),
   validate(startExamSchema),
   startExam
 );
 router.post(
   "/exams/submit",
   authenticateUser,
-  authorizeStudent,
+  authorizeRole(["student"]),
   validate(submitExamSchema),
   submitExam
 );
@@ -37,17 +37,17 @@ router.post(
 router.post(
   "/upload-profile-picture",
   authenticateUser,
-  authorizeStudent,
+  authorizeRole(["student"]),
   upload.single("profilePicture"),
   uploadImage
 );
 
-router.get("/given-exams", authenticateUser, authorizeStudent, getGivenExams);
+router.get("/given-exams", authenticateUser, authorizeRole(["student"]), getGivenExams);
 
 router.put(
   "/edit-profile",
   authenticateUser,
-  authorizeStudent,
+  authorizeRole(["student"]),
   validate(updateProfileSchema),
   editProfile
 );
