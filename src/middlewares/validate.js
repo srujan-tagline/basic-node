@@ -14,7 +14,7 @@ const validate = (schema) => (req, res, next) => {
     console.error("Validation error:", err);
     return res
       .status(500)
-      .json({ message: "Internal Server Error during validation" });
+      .json({ message: "Internal Server Error during validation." });
   }
 };
 

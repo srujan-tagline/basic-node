@@ -1,9 +1,16 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const User = require("../models/userModel");
 const sendEmail = require("../utils/sendEmail");
-const { generateToken } = require("../utils/generateToken");
-const { hashPassword } = require("../utils/hashPassword");
+const { generateToken } = require("../utils/common");
+const { hashPassword } = require("../utils/common");
+const {
+  findUserByEmail,
+  findUserById,
+  createUser,
+  updateUserById,
+} = require("../services/userService");
+const {statusCode, responseMessage} = require("../utils/constant");
+const {response} = require("../utils/common");
 const cloudinary = require("../../config/cloudinary");
 require("dotenv").config();
 
@@ -11,14 +18,14 @@ const signup = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await findUserByEmail(email);
     if (existingUser) {
-      return res.status(400).json({ message: "Email already in use" });
+      return response(false, res, statusCode.BAD_REQUEST, responseMessage.EMAIL_ALREADY_USE);
     }
 
     const hashedPassword = await hashPassword(password);
 
-    await User.create({
+    await createUser({
       name,
       email,
       password: hashedPassword,
@@ -36,15 +43,10 @@ const signup = async (req, res) => {
         `Click here to verify: ${verificationLink}`
       );
     } catch (err) {
-      return res.status(201).json({
-        message:
-          "Signup successful, but verifiction email could not be send. Please try again later.",
-      });
+      return response(false, res, statusCode.CREATED, responseMessage.SIGNUP_SUCCESSFUL_BUT_VERIFYMAIL_NOT_SENT);
     }
 
-    return res
-      .status(201)
-      .json({ message: "Signup successful. Verification email sent." });
+    return response(true, res, statusCode.CREATED, responseMessage.SIGNUP_SUCCESSFUL);
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -59,32 +61,30 @@ const verifyEmail = async (req, res) => {
       decode = jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
       if (err.name === "TokenExpiredError") {
-        return res.status(400).json({
-          message: "Token expired. Please request a new verification email.",
-        });
+        return response(false, res, statusCode.BAD_REQUEST, responseMessage.TOKEN_EXPIRED_REQUEST_NEW_MAIL)
       }
       throw err;
     }
 
     if (decode.purpose !== "verifyEmail") {
-      return res.status(403).json({ message: "Invalid token for this action" });
+      return response(false, res, statusCode.FORBIDDEN, responseMessage.INVALID_TOKEN_FOR_ACTION);
     }
 
-    const user = await User.findOne({ email: decode.email });
+    const user = await findUserByEmail(decode.email);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return response(false, res, statusCode.NOT_FOUND, responseMessage.USER_NOT_FOUND);
     }
 
     if (user.isVerified) {
-      return res.status(400).json({ message: "Email already verified" });
+      return response(false, res, statusCode.BAD_REQUEST, responseMessage.USER_ALREADY_VERIFIED);
     }
 
     user.isVerified = true;
     await user.save();
 
-    return res.status(200).json({ message: "Email verified successfully" });
+    return response(true, res, statusCode.SUCCESS, responseMessage.USER_VERIFIED)
   } catch (err) {
-    return res.status(400).json({ message: "Failed to verify email" });
+    return response(false, res, statusCode.BAD_REQUEST, responseMessage.FAILED_TO_VERIFY_USER)
   }
 };
 
@@ -92,18 +92,18 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await findUserByEmail(email);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return response(false, res, statusCode.NOT_FOUND, responseMessage.INVALID_EMAIL);
     }
 
     if (!user.isVerified) {
-      return res.status(400).json({ message: "User not verified" });
+      return response(false, res, statusCode.BAD_REQUEST, responseMessage.USER_NOT_VERIFIED)
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      return response(false, res, statusCode.UNAUTHORIZED, responseMessage.INVALID_PASSWORD);
     }
 
     const token = generateToken(
@@ -112,20 +112,22 @@ const login = async (req, res) => {
       "login"
     );
 
-    return res.status(200).json({ message: "Login successful", token });
+    return response(true, res, statusCode.SUCCESS, responseMessage.LOGIN_SUCCESSFUL, token);
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 
 const forgetPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const user = await findUserByEmail(email);
+    if (!user) {
+      return response(false, res, statusCode.NOT_FOUND, responseMessage.INVALID_EMAIL);
+    }
 
     if (!user.isVerified) {
-      return res.status(400).json({ message: "User not verified" });
+      return response(false, res, statusCode.BAD_REQUEST, responseMessage.USER_NOT_VERIFIED);
     }
 
     const token = generateToken({ id: user._id }, "1h", "resetPassword");
@@ -137,11 +139,10 @@ const forgetPassword = async (req, res) => {
       "Reset Your Password",
       `Click here to reset: ${resetLink}`
     );
-    return res
-      .status(200)
-      .json({ message: "Password reset link sent to email" });
+
+    return response(true, res, statusCode.SUCCESS, responseMessage.PASSWORD_RESET_LINK_SENT);
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 
@@ -153,32 +154,28 @@ const resetPassword = async (req, res) => {
     const decode = jwt.verify(token, process.env.JWT_SECRET);
 
     if (decode.purpose !== "resetPassword") {
-      return res.status(403).json({ message: "Invalid token for this action" });
+      return response(false, res, statusCode.FORBIDDEN, responseMessage.INVALID_TOKEN_FOR_ACTION);
     }
 
-    const user = await User.findById(decode.id);
+    const user = await findUserById(decode.id);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return response(false, res, statusCode.NOT_FOUND, responseMessage.USER_NOT_FOUND);
     }
 
     if (newPassword !== confirmPassword) {
-      return res
-        .status(400)
-        .json({ message: "New password and confirm password do not match" });
+      return response(false, res, statusCode.BAD_REQUEST, responseMessage.NEW_PASSWORD_AND_CONFIRM_PASSWORD_NOT_MATCH);
     }
 
     if (await bcrypt.compare(newPassword, user.password)) {
-      return res.status(400).json({
-        message: "New password must be different from the old password",
-      });
+      return response(false, res, statusCode.BAD_REQUEST, responseMessage.NEW_PASSWORD_MUST_DIFFERENT_FROM_OLD_PASSWORD);
     }
 
     user.password = await hashPassword(newPassword);
     await user.save();
 
-    return res.status(200).json({ message: "Password reset successful" });
+    return response(true, res, statusCode.SUCCESS, responseMessage.PASSWORD_RESET);
   } catch (err) {
-    return res.status(400).json({ message: "Invalid or expired token" });
+    return response(true, res, statusCode.BAD_REQUEST, responseMessage.INVALID_TOKEN);
   }
 };
 
@@ -186,36 +183,31 @@ const changePassword = async (req, res) => {
   try {
     const { email, oldPassword, newPassword, confirmPassword } = req.body;
 
-    const user = await User.findOne({ email: email });
+    const user = await findUserByEmail(email);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return response(false, res, statusCode.NOT_FOUND, responseMessage.INVALID_EMAIL);
     }
 
     const comparePassword = await bcrypt.compare(oldPassword, user.password);
     if (!comparePassword) {
-      return res.status(400).json({ message: "Old Password is incorrect" });
+      return response(false, res, statusCode.BAD_REQUEST, responseMessage.INCORRECT_OLD_PASSWORD);
     }
 
     if (newPassword === oldPassword) {
-      return res.status(400).json({
-        message: "New password must be different from the old password",
-      });
+      return response(false, res, statusCode.BAD_REQUEST, responseMessage.NEW_PASSWORD_MUST_DIFFERENT_FROM_OLD_PASSWORD);
     }
 
     if (newPassword !== confirmPassword) {
-      return res
-        .status(400)
-        .json({ message: "New password and Confirm password do not match" });
+      return response(false, res, statusCode.BAD_REQUEST, responseMessage.NEW_PASSWORD_AND_CONFIRM_PASSWORD_NOT_MATCH);
     }
 
-    await User.findOneAndUpdate(
-      { email: email },
-      { $set: { password: await hashPassword(newPassword) } }
-    );
+    await updateUserById(user._id, {
+      password: await hashPassword(newPassword),
+    });
 
-    return res.status(200).json({ message: "Password change successful" });
+    return response(true, res, statusCode.SUCCESS, responseMessage.PASSWORD_CHANGED);
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 
@@ -223,13 +215,24 @@ const resendVerificationEmail = async (req, res) => {
   try {
     const { email } = req.body;
 
-    const user = await User.findOne({ email });
+    const user = await findUserByEmail(email);
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.INVALID_EMAIL
+      );
     }
 
     if (user.isVerified) {
-      return res.status(400).json({ message: "User is already verified" });
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.USER_ALREADY_VERIFIED
+      );
+
     }
 
     const token = generateToken({ email }, "1h", "verifyEmail");
@@ -242,14 +245,28 @@ const resendVerificationEmail = async (req, res) => {
         `Click here to verify: ${verificationLink}`
       );
     } catch (err) {
-      return res.status(500).json({ message: "Error while sending email" });
+      return response(
+        false,
+        res,
+        statusCode.INTERNAL_SERVER_ERROR,
+        responseMessage.ERROR_WHILE_SEND_EMAIL
+      );
+
     }
 
-    return res
-      .status(200)
-      .json({ message: "Verification email sent successfully" });
+      return response(
+        true,
+        res,
+        statusCode.SUCCESS,
+        responseMessage.VERIFY_EMAIL_RESENT
+      );
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+      return response(
+        false,
+        res,
+        statusCode.INTERNAL_SERVER_ERROR,
+        err.message
+      );
   }
 };
 
@@ -257,7 +274,7 @@ const uploadImage = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    const user = await User.findById(userId);
+    const user = await findUserById(userId);
 
     if (user.profilePicturePublicId) {
       await cloudinary.uploader.destroy(user.profilePicturePublicId);
@@ -266,25 +283,35 @@ const uploadImage = async (req, res) => {
     const profilePicture = req.file.path;
     const profilePicturePublicId = req.file.filename;
 
-    const updatedUser = await User.findOneAndUpdate(
-      { _id: userId },
-      { profilePicture, profilePicturePublicId },
-      { new: true }
-    );
+    const updatedUser = await updateUserById(userId, {
+      profilePicture,
+      profilePicturePublicId,
+    });
 
     if (!updatedUser) {
-      return res.status(404).json({ message: "User not found" });
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.USER_NOT_FOUND
+      );
+
     }
 
-    return res.status(200).json({
-      message: "Profile picture updated successfully.",
-      user: updatedUser,
-    });
+      return response(
+        true,
+        res,
+        statusCode.SUCCESS,
+        responseMessage.PROFILE_PICTURE_UPDATED,
+        updatedUser
+      );
   } catch (err) {
-    return res.status(500).json({
-      error: "Failed to upload profile picture.",
-      details: err,
-    });
+      return response(
+        false,
+        res,
+        statusCode.INTERNAL_SERVER_ERROR,
+        err.message
+      );
   }
 };
 

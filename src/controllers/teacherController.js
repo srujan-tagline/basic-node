@@ -1,48 +1,33 @@
-const User = require("../models/userModel");
-const Exam = require("../models/examModel");
-const Result = require("../models/resultModel");
-const mongoose = require("mongoose");
+const {
+  findStudents,
+  findUserByIdWithExclusion,
+} = require("../services/userService");
+const {
+  getAllExamGivenStudents,
+  getResultsByStudentId,
+} = require("../services/resultService");
+const {
+  findExamById,
+  findExamBySubject,
+  examCreate,
+  listAllExams,
+  updateExamById,
+} = require("../services/examService");
 
 const listAllStudents = async (req, res) => {
   try {
-    const students = await User.find({ role: "student" })
-      .select("-password")
-      .sort({ createdAt: -1 });
-    return res.json({ data:students });
+    const students = await findStudents();
+    return res
+      .status(200)
+      .json({ message: "User retrieved successfully.", data: students });
   } catch (err) {
-    return res.status(500).json({ error: "Failed to retrieve students." });
+    return res.status(500).json({ message: err.message });
   }
 };
 
 const listExamGivenStudents = async (req, res) => {
   try {
-    const students = await Result.aggregate([
-      {
-        $group: {
-          _id: "$studentId",
-        },
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "_id",
-          foreignField: "_id",
-          as: "studentDetails",
-        },
-      },
-      {
-        $unwind: "$studentDetails",
-      },
-      {
-        $project: {
-          _id: 0,
-          studentId: "$studentDetails._id",
-          name: "$studentDetails.name",
-          email: "$studentDetails.email",
-          role: "$studentDetails.role",
-        },
-      },
-    ]);
+    const students = await getAllExamGivenStudents();
 
     if (!students.length) {
       return res
@@ -50,11 +35,11 @@ const listExamGivenStudents = async (req, res) => {
         .json({ message: "No students have given any exams yet." });
     }
 
-    return res.json({ students });
-  } catch (err) {
     return res
-      .status(500)
-      .json({ error: "Failed to retrieve students who have given exams." });
+      .status(200)
+      .json({ message: "Students retrieved successfully.", students });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -62,63 +47,27 @@ const getStudentDetails = async (req, res) => {
   try {
     const { studentId } = req.params;
 
-    const studentDetails = await User.findById(studentId).select("-password");
+    const studentDetails = await findUserByIdWithExclusion(
+      studentId,
+      "-password"
+    );
     if (!studentDetails) {
-      return res.status(404).json({ message: "Student not found." });
+      return res.status(404).json({ message: "Student is not found." });
     }
 
-    const results = await Result.aggregate([
-      {
-        $match: { studentId: new mongoose.Types.ObjectId(studentId) },
-      },
-      {
-        $lookup: {
-          from: "exams",
-          localField: "examId",
-          foreignField: "_id",
-          as: "examDetails",
-        },
-      },
-      {
-        $unwind: {
-          path: "$examDetails",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          examId: 1,
-          subjectName: "$examDetails.subjectName",
-          result: {
-            totalQuestions: { $size: "$examDetails.questions" },
-            score: "$score",
-            percentage: {
-              $multiply: [
-                { $divide: ["$score", { $size: "$examDetails.questions" }] },
-                100,
-              ],
-            },
-          },
-          rank: 1,
-          status: 1,
-        },
-      },
-      {
-        $sort: { score: -1 },
-      },
-    ]);
+    const results = await getResultsByStudentId(studentId);
 
     const response = {
       ...studentDetails.toObject(),
       givenExams: results,
     };
 
-    return res.status(200).json(response);
+    return res
+      .status(200)
+      .json({ message: "Student details retrieved successfully.", response });
   } catch (err) {
     return res.status(500).json({
-      error: "Failed to retrieve student details.",
-      details: err.message,
+      message: err.message,
     });
   }
 };
@@ -127,52 +76,56 @@ const createExam = async (req, res) => {
   try {
     const { subjectName, questions } = req.body;
 
-    const existingExam = await Exam.findOne({ subjectName });
+    const existingExam = await findExamBySubject(subjectName);
     if (existingExam) {
-      return res.status(400).json({ error: "Subject name must be unique." });
+      return res.status(400).json({ message: "Subject name must be unique." });
     }
 
     for (const question of questions) {
-      if(!question.options.includes(question.correctAnswer)){
-        return res
-          .status(400)
-          .json({
-            error: `Correct answer "${question.correctAnswer}" must be one of the options: ${question.options.join(", ")}.`,
-          });
+      if (!question.options.includes(question.correctAnswer)) {
+        return res.status(400).json({
+          message: `Correct answer "${
+            question.correctAnswer
+          }" must be one of the options: ${question.options.join(", ")}.`,
+        });
       }
     }
 
-    const newExam = await Exam.create({ subjectName, questions });
+    const newExam = await examCreate({ subjectName, questions });
 
     return res
       .status(201)
       .json({ message: "Exam created successfully.", exam: newExam });
   } catch (err) {
-    return res.status(500).json({ error: "Failed to create exam." });
+    return res.status(500).json({ message: err.message });
   }
 };
 
 const listExams = async (req, res) => {
   try {
-    const exams = await Exam.find({}).sort("subjectName");
-    return res.json({ exams });
+    const exams = await listAllExams();
+    return res
+      .status(200)
+      .json({ message: "Exams retrieved successfully", exams });
   } catch (err) {
-    return res.status(500).json({ error: "Failed to retrieve exams." });
+    return res.status(500).json({ message: err.message });
   }
 };
 
 const getExamDetails = async (req, res) => {
   try {
     const { examId } = req.params;
-    const exam = await Exam.findById(examId);
+    const exam = await findExamById(examId);
 
     if (!exam) {
-      return res.status(404).json({ error: "Exam not found." });
+      return res.status(404).json({ error: "Exam is not found." });
     }
 
-    return res.json({ exam });
+    return res
+      .status(200)
+      .json({ message: "Exam Details retrieved successfully", exam });
   } catch (err) {
-    return res.status(500).json({ error: "Failed to retrieve exam details." });
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -181,22 +134,21 @@ const editExam = async (req, res) => {
     const { examId } = req.params;
     const { subjectName, questions } = req.body;
 
-    const updatedExam = await Exam.findOneAndUpdate(
-      { _id: examId },
-      { $set: { subjectName, questions } },
-      { new: true }
-    );
+    const updatedExam = await updateExamById(examId, {
+      subjectName,
+      questions,
+    });
 
     if (!updatedExam) {
-      return res.status(404).json({ error: "Exam not found." });
+      return res.status(404).json({ message: "Exam is not found." });
     }
 
-    return res.json({
-      message: "Exam updated successfully.",
+    return res.status(200).json({
+      message: "Exam is updated successfully.",
       exam: updatedExam,
     });
   } catch (err) {
-    return res.status(500).json({ error: "Failed to update exam." });
+    return res.status(500).json({ message: err.message });
   }
 };
 
@@ -204,18 +156,14 @@ const deleteExam = async (req, res) => {
   try {
     const { examId } = req.params;
 
-    const deletedExam = await Exam.findOneAndUpdate(
-      { _id: examId },
-      { $set: { isDeleted: true } },
-      { new: true }
-    );
+    const deletedExam = await updateExamById(examId, { isDeleted: true });
     if (!deletedExam) {
-      return res.status(404).json({ error: "Exam not found." });
+      return res.status(404).json({ message: "Exam is not found." });
     }
 
-    return res.json({ message: "Exam deleted successfully." });
+    return res.status(200).json({ message: "Exam is deleted successfully." });
   } catch (err) {
-    return res.status(500).json({ error: "Failed to delete exam." });
+    return res.status(500).json({ message: err.message });
   }
 };
 

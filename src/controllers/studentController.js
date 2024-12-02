@@ -1,41 +1,59 @@
-const Exam = require("../models/examModel");
-const Result = require("../models/resultModel");
-const User = require("../models/userModel");
-const { hashPassword } = require("../utils/hashPassword");
-const mongoose = require("mongoose");
+const { hashPassword } = require("../utils/common");
+const {
+  findExamBySubjectName,
+  findExamById,
+} = require("../services/examService");
+const {
+  findResultByExamAndStudent,
+  createResult,
+  getGivenExamsByStudentId,
+} = require("../services/resultService");
+const {statusCode, responseMessage} = require("../utils/constant");
+const {response} = require("../utils/common");
+const { findUserByEmail, updateUserById } = require("../services/userService");
 
 const startExam = async (req, res) => {
   try {
     const { subjectName } = req.body;
     const studentId = req.user._id;
 
-    const exam = await Exam.findOne(
-      { subjectName, isDeleted: false },
-      { "questions.correctAnswer": 0 }
-    );
-
+    const exam = await findExamBySubjectName(subjectName);
     if (!exam) {
-      return res.status(404).json({ message: "Exam not found." });
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.EXAM_NOT_FOUND
+      );
     }
 
-    const existingResult = await Result.findOne({
-      examId: exam._id,
-      studentId,
-    });
+    const existingResult = await findResultByExamAndStudent(
+      exam._id,
+      studentId
+    );
     if (existingResult) {
-      return res
-        .status(400)
-        .json({ message: "You have already given this exam." });
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.ALREADY_GIVEN_EXAM
+      );
     }
 
-    return res.status(200).json({
-      message: "You can start the exam.",
-      questions: exam.questions,
-    });
+      return response(
+        true,
+        res,
+        statusCode.SUCCESS,
+        responseMessage.START_EXAM,
+        exam.questions
+      );
   } catch (error) {
-    return res
-      .status(500)
-      .json({ message: "Server error.", error: error.message });
+      return response(
+        false,
+        res,
+        statusCode.INTERNAL_SERVER_ERROR,
+        error.message
+      );
   }
 };
 
@@ -44,26 +62,36 @@ const submitExam = async (req, res) => {
     const { examId, answers } = req.body;
     const studentId = req.user._id;
 
-    const exam = await Exam.findById(examId);
+    const exam = await findExamById(examId);
     if (!exam) {
-      return res.status(404).json({ message: "Exam not found." });
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.EXAM_NOT_FOUND
+      );
     }
 
-    const alreadySubmit = await Result.findOne({
-      examId: exam._id,
-      studentId,
-    });
+    const alreadySubmit = await findResultByExamAndStudent(exam._id, studentId);
     if (alreadySubmit) {
-      return res
-        .status(400)
-        .json({ message: "You have already submit this exam." });
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.ALREADY_SUBMIT_EXAM
+      );
     }
 
     let score = 0;
     for (const answer of answers) {
       const question = exam.questions.id(answer.questionId);
       if (!question) {
-        return res.status(400).json({ message: "Invalid question ID." });
+        return response(
+          false,
+          res,
+          statusCode.BAD_REQUEST,
+          responseMessage.INVALID_QUESTION_ID
+        );
       }
 
       if (!question.options.includes(answer.selectedOption)) {
@@ -76,42 +104,36 @@ const submitExam = async (req, res) => {
         score += 1;
       }
     }
-    
-    const existingResults = await Result.find({ examId }).sort({ score: -1 });
-    let rank = 1;
-
-    for (const result of existingResults) {
-      if (score < result.score) {
-        rank++;
-      } else if (score === result.score) {
-        rank = result.rank;
-        break;
-      } else if (score > result.score) {
-        await Result.updateOne({ _id: result._id }, { $inc: { rank: 1 } });
-      } else {
-        break;
-      }
-    }
 
     if (!(exam.questions.length === answers.length)) {
-      return res
-        .status(400)
-        .json({ message: "Please attempt all the questions" });
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.ATTEMPT_ALL_QUESTION
+      );
     }
 
-     await Result.create({
+    await createResult({
       examId,
       studentId,
       answers,
       score,
-      rank,
     });
 
-    return res.status(200).json({ message: "Exam submitted successfully." });
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.EXAM_SUBMITTED
+    );
   } catch (error) {
-    return res
-      .status(500)
-      .json({ message: "Server error.", error: error.message });
+    return response(
+      false,
+      res,
+      statusCode.INTERNAL_SERVER_ERROR,
+      error.message
+    );
   }
 };
 
@@ -119,51 +141,22 @@ const getGivenExams = async (req, res) => {
   try {
     const studentId = req.user._id;
 
-    const givenExams = await Result.aggregate([
-      {
-        $match: {
-          studentId: new mongoose.Types.ObjectId(studentId),
-          status: "completed",
-        },
-      },
-      {
-        $lookup: {
-          from: "exams",
-          localField: "examId",
-          foreignField: "_id",
-          as: "examDetails",
-        },
-      },
-      {
-        $unwind: "$examDetails",
-      },
-      {
-        $match: { "examDetails.isDeleted": false },
-      },
-      {
-        $project: {
-          _id: 0,
-          examId: 1,
-          subjectName: "$examDetails.subjectName",
-          score: 1,
-          rank: 1,
-          status: 1,
-        },
-      },
-    ]);
+    const givenExams = await getGivenExamsByStudentId(studentId);
 
-    if (givenExams.length === 0) {
-      return res
-        .status(200)
-        .json({ message: "No exams given yet.", givenExams: [] });
-    }
-
-    return res.status(200).json({ givenExams });
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.RETRIEVED_GIVEN_EXAM,
+      givenExams
+    );
   } catch (error) {
-    return res.status(500).json({
-      message: "Failed to retrieve given exams.",
-      error: error.message,
-    });
+    return response(
+      false,
+      res,
+      statusCode.INTERNAL_SERVER_ERROR,
+      error.message
+    );
   }
 };
 
@@ -173,14 +166,14 @@ const editProfile = async (req, res) => {
     const { name, email, password } = req.body;
 
     if (email) {
-      const emailExists = await User.findOne({
-        email: email,
-        _id: { $ne: studentId },
-      });
-      if (emailExists) {
-        return res
-          .status(400)
-          .json({ message: "Email already in use by another account." });
+      const emailExists = await findUserByEmail(email);
+      if (emailExists && emailExists._id.toString() !== studentId.toString()) {
+        return response(
+          false,
+          res,
+          statusCode.BAD_REQUEST,
+          responseMessage.EMAIL_ALREADY_USE
+        );
       }
     }
 
@@ -189,24 +182,31 @@ const editProfile = async (req, res) => {
       updatedData.password = await hashPassword(password);
     }
 
-    const updatedUser = await User.findOneAndUpdate(
-      { _id: studentId },
-      { $set: updatedData },
-      { new: true }
-    );
+    const updatedUser = await updateUserById(studentId, updatedData);
 
     if (!updatedUser) {
-      return res.status(404).json({ message: "Student not found" });
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.STUDENT_NOT_FOUND
+      );
     }
 
-    return res
-      .status(200)
-      .json({ message: "Profile updated successfully", user: updatedUser });
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.PROFILE_UPDATED,
+      updatedUser
+    );
   } catch (error) {
-    return res.status(500).json({
-      message: "Failed to update profile.",
-      error: error.message,
-    });
+    return response(
+      false,
+      res,
+      statusCode.INTERNAL_SERVER_ERROR,
+      error.message
+    );
   }
 };
 

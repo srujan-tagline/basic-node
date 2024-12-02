@@ -22,9 +22,6 @@ const resultSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
-    rank: {
-      type: Number,
-    },
     status: {
       type: String,
       enum: ["in-progress", "completed"],

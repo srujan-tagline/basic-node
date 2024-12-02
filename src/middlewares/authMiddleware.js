@@ -4,7 +4,7 @@ const User = require("../models/userModel");
 const authenticateUser = async (req, res, next) => {
   const token = req.header("Authorization")?.replace("Bearer ", "");
   if (!token) {
-    return res.status(401).json({ error: "Unauthorized access." });
+    return res.status(401).json({ message: "Please login to continue." });
   }
 
   try {
@@ -15,13 +15,13 @@ const authenticateUser = async (req, res, next) => {
 
     const user = await User.findById(decoded.id);
     if (!user) {
-      return res.status(404).json({ error: "User not found." });
+      return res.status(404).json({ message: "User is not found." });
     }
 
     req.user = user;
     next();
   } catch (err) {
-    return res.status(401).json({ error: "Invalid token." });
+    return res.status(401).json({ message: "Invalid or expired token." });
   }
 };
 
