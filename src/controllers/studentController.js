@@ -8,8 +8,8 @@ const {
   createResult,
   getGivenExamsByStudentId,
 } = require("../services/resultService");
-const {statusCode, responseMessage} = require("../utils/constant");
-const {response} = require("../utils/common");
+const { statusCode, responseMessage } = require("../utils/constant");
+const { response } = require("../utils/common");
 const { findUserByEmail, updateUserById } = require("../services/userService");
 
 const startExam = async (req, res) => {
@@ -40,20 +40,20 @@ const startExam = async (req, res) => {
       );
     }
 
-      return response(
-        true,
-        res,
-        statusCode.SUCCESS,
-        responseMessage.START_EXAM,
-        exam.questions
-      );
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.START_EXAM,
+      exam.questions
+    );
   } catch (error) {
-      return response(
-        false,
-        res,
-        statusCode.INTERNAL_SERVER_ERROR,
-        error.message
-      );
+    return response(
+      false,
+      res,
+      statusCode.INTERNAL_SERVER_ERROR,
+      error.message
+    );
   }
 };
 

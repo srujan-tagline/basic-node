@@ -13,15 +13,21 @@ const {
   listAllExams,
   updateExamById,
 } = require("../services/examService");
+const { statusCode, responseMessage } = require("../utils/constant");
+const { response } = require("../utils/common");
 
 const listAllStudents = async (req, res) => {
   try {
     const students = await findStudents();
-    return res
-      .status(200)
-      .json({ message: "User retrieved successfully.", data: students });
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.STUDENT_RETRIEVED,
+      students
+    );
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 
@@ -30,16 +36,23 @@ const listExamGivenStudents = async (req, res) => {
     const students = await getAllExamGivenStudents();
 
     if (!students.length) {
-      return res
-        .status(404)
-        .json({ message: "No students have given any exams yet." });
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.NO_STUDENT_GIVE_EXAM
+      );
     }
 
-    return res
-      .status(200)
-      .json({ message: "Students retrieved successfully.", students });
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.STUDENT_RETRIEVED,
+      students
+    );
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 
@@ -52,7 +65,12 @@ const getStudentDetails = async (req, res) => {
       "-password"
     );
     if (!studentDetails) {
-      return res.status(404).json({ message: "Student is not found." });
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.STUDENT_NOT_FOUND
+      );
     }
 
     const results = await getResultsByStudentId(studentId);
@@ -62,13 +80,15 @@ const getStudentDetails = async (req, res) => {
       givenExams: results,
     };
 
-    return res
-      .status(200)
-      .json({ message: "Student details retrieved successfully.", response });
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.STUDENT_DETAILS_RETRIEVED,
+      response
+    );
   } catch (err) {
-    return res.status(500).json({
-      message: err.message,
-    });
+    return response(true, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 
@@ -78,7 +98,12 @@ const createExam = async (req, res) => {
 
     const existingExam = await findExamBySubject(subjectName);
     if (existingExam) {
-      return res.status(400).json({ message: "Subject name must be unique." });
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.SUBJECT_MUST_BE_UNIQUE
+      );
     }
 
     for (const question of questions) {
@@ -93,22 +118,31 @@ const createExam = async (req, res) => {
 
     const newExam = await examCreate({ subjectName, questions });
 
-    return res
-      .status(201)
-      .json({ message: "Exam created successfully.", exam: newExam });
+    return response(
+      true,
+      res,
+      statusCode.CREATED,
+      responseMessage.EXAM_CREATED,
+      newExam
+    );
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 
 const listExams = async (req, res) => {
   try {
     const exams = await listAllExams();
-    return res
-      .status(200)
-      .json({ message: "Exams retrieved successfully", exams });
+
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.EXAM_RETRIEVED,
+      exams
+    );
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 
@@ -118,14 +152,23 @@ const getExamDetails = async (req, res) => {
     const exam = await findExamById(examId);
 
     if (!exam) {
-      return res.status(404).json({ error: "Exam is not found." });
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.EXAM_NOT_FOUND
+      );
     }
 
-    return res
-      .status(200)
-      .json({ message: "Exam Details retrieved successfully", exam });
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.EXAM_RETRIEVED,
+      exam
+    );
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 
@@ -140,15 +183,23 @@ const editExam = async (req, res) => {
     });
 
     if (!updatedExam) {
-      return res.status(404).json({ message: "Exam is not found." });
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.EXAM_NOT_FOUND
+      );
     }
 
-    return res.status(200).json({
-      message: "Exam is updated successfully.",
-      exam: updatedExam,
-    });
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.EXAM_UPDATED,
+      updatedExam
+    );
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 
@@ -158,12 +209,22 @@ const deleteExam = async (req, res) => {
 
     const deletedExam = await updateExamById(examId, { isDeleted: true });
     if (!deletedExam) {
-      return res.status(404).json({ message: "Exam is not found." });
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.EXAM_NOT_FOUND
+      );
     }
 
-    return res.status(200).json({ message: "Exam is deleted successfully." });
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.EXAM_DELETED
+    );
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 

@@ -1,3 +1,6 @@
+const { statusCode, responseMessage } = require("../utils/constant");
+const { response } = require("../utils/common");
+
 const validate = (schema) => (req, res, next) => {
   try {
     const { error } = schema.validate(
@@ -6,15 +9,23 @@ const validate = (schema) => (req, res, next) => {
     );
 
     if (error) {
-      return res.status(400).json({ message: error.details[0].message });
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        error.details[0].message
+      );
     }
 
     next();
   } catch (err) {
     console.error("Validation error:", err);
-    return res
-      .status(500)
-      .json({ message: "Internal Server Error during validation." });
+    return response(
+      false,
+      res,
+      statusCode.INTERNAL_SERVER_ERROR,
+      responseMessage.ERROR_DURING_VALIDATION
+    );
   }
 };
 

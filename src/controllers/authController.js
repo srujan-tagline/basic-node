@@ -9,8 +9,8 @@ const {
   createUser,
   updateUserById,
 } = require("../services/userService");
-const {statusCode, responseMessage} = require("../utils/constant");
-const {response} = require("../utils/common");
+const { statusCode, responseMessage } = require("../utils/constant");
+const { response } = require("../utils/common");
 const cloudinary = require("../../config/cloudinary");
 require("dotenv").config();
 
@@ -20,7 +20,12 @@ const signup = async (req, res) => {
 
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
-      return response(false, res, statusCode.BAD_REQUEST, responseMessage.EMAIL_ALREADY_USE);
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.EMAIL_ALREADY_USE
+      );
     }
 
     const hashedPassword = await hashPassword(password);
@@ -43,10 +48,20 @@ const signup = async (req, res) => {
         `Click here to verify: ${verificationLink}`
       );
     } catch (err) {
-      return response(false, res, statusCode.CREATED, responseMessage.SIGNUP_SUCCESSFUL_BUT_VERIFYMAIL_NOT_SENT);
+      return response(
+        false,
+        res,
+        statusCode.CREATED,
+        responseMessage.SIGNUP_SUCCESSFUL_BUT_VERIFYMAIL_NOT_SENT
+      );
     }
 
-    return response(true, res, statusCode.CREATED, responseMessage.SIGNUP_SUCCESSFUL);
+    return response(
+      true,
+      res,
+      statusCode.CREATED,
+      responseMessage.SIGNUP_SUCCESSFUL
+    );
   } catch (err) {
     return res.status(500).json({ message: err.message });
   }
@@ -61,30 +76,60 @@ const verifyEmail = async (req, res) => {
       decode = jwt.verify(token, process.env.JWT_SECRET);
     } catch (err) {
       if (err.name === "TokenExpiredError") {
-        return response(false, res, statusCode.BAD_REQUEST, responseMessage.TOKEN_EXPIRED_REQUEST_NEW_MAIL)
+        return response(
+          false,
+          res,
+          statusCode.BAD_REQUEST,
+          responseMessage.TOKEN_EXPIRED_REQUEST_NEW_MAIL
+        );
       }
       throw err;
     }
 
     if (decode.purpose !== "verifyEmail") {
-      return response(false, res, statusCode.FORBIDDEN, responseMessage.INVALID_TOKEN_FOR_ACTION);
+      return response(
+        false,
+        res,
+        statusCode.FORBIDDEN,
+        responseMessage.INVALID_TOKEN_FOR_ACTION
+      );
     }
 
     const user = await findUserByEmail(decode.email);
     if (!user) {
-      return response(false, res, statusCode.NOT_FOUND, responseMessage.USER_NOT_FOUND);
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.USER_NOT_FOUND
+      );
     }
 
     if (user.isVerified) {
-      return response(false, res, statusCode.BAD_REQUEST, responseMessage.USER_ALREADY_VERIFIED);
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.USER_ALREADY_VERIFIED
+      );
     }
 
     user.isVerified = true;
     await user.save();
 
-    return response(true, res, statusCode.SUCCESS, responseMessage.USER_VERIFIED)
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.USER_VERIFIED
+    );
   } catch (err) {
-    return response(false, res, statusCode.BAD_REQUEST, responseMessage.FAILED_TO_VERIFY_USER)
+    return response(
+      false,
+      res,
+      statusCode.BAD_REQUEST,
+      responseMessage.FAILED_TO_VERIFY_USER
+    );
   }
 };
 
@@ -94,16 +139,31 @@ const login = async (req, res) => {
 
     const user = await findUserByEmail(email);
     if (!user) {
-      return response(false, res, statusCode.NOT_FOUND, responseMessage.INVALID_EMAIL);
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.INVALID_EMAIL
+      );
     }
 
     if (!user.isVerified) {
-      return response(false, res, statusCode.BAD_REQUEST, responseMessage.USER_NOT_VERIFIED)
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.USER_NOT_VERIFIED
+      );
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return response(false, res, statusCode.UNAUTHORIZED, responseMessage.INVALID_PASSWORD);
+      return response(
+        false,
+        res,
+        statusCode.UNAUTHORIZED,
+        responseMessage.INVALID_PASSWORD
+      );
     }
 
     const token = generateToken(
@@ -112,7 +172,13 @@ const login = async (req, res) => {
       "login"
     );
 
-    return response(true, res, statusCode.SUCCESS, responseMessage.LOGIN_SUCCESSFUL, token);
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.LOGIN_SUCCESSFUL,
+      token
+    );
   } catch (err) {
     return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
@@ -123,11 +189,21 @@ const forgetPassword = async (req, res) => {
     const { email } = req.body;
     const user = await findUserByEmail(email);
     if (!user) {
-      return response(false, res, statusCode.NOT_FOUND, responseMessage.INVALID_EMAIL);
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.INVALID_EMAIL
+      );
     }
 
     if (!user.isVerified) {
-      return response(false, res, statusCode.BAD_REQUEST, responseMessage.USER_NOT_VERIFIED);
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.USER_NOT_VERIFIED
+      );
     }
 
     const token = generateToken({ id: user._id }, "1h", "resetPassword");
@@ -140,7 +216,12 @@ const forgetPassword = async (req, res) => {
       `Click here to reset: ${resetLink}`
     );
 
-    return response(true, res, statusCode.SUCCESS, responseMessage.PASSWORD_RESET_LINK_SENT);
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.PASSWORD_RESET_LINK_SENT
+    );
   } catch (err) {
     return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
@@ -154,28 +235,58 @@ const resetPassword = async (req, res) => {
     const decode = jwt.verify(token, process.env.JWT_SECRET);
 
     if (decode.purpose !== "resetPassword") {
-      return response(false, res, statusCode.FORBIDDEN, responseMessage.INVALID_TOKEN_FOR_ACTION);
+      return response(
+        false,
+        res,
+        statusCode.FORBIDDEN,
+        responseMessage.INVALID_TOKEN_FOR_ACTION
+      );
     }
 
     const user = await findUserById(decode.id);
     if (!user) {
-      return response(false, res, statusCode.NOT_FOUND, responseMessage.USER_NOT_FOUND);
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.USER_NOT_FOUND
+      );
     }
 
     if (newPassword !== confirmPassword) {
-      return response(false, res, statusCode.BAD_REQUEST, responseMessage.NEW_PASSWORD_AND_CONFIRM_PASSWORD_NOT_MATCH);
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.NEW_PASSWORD_AND_CONFIRM_PASSWORD_NOT_MATCH
+      );
     }
 
     if (await bcrypt.compare(newPassword, user.password)) {
-      return response(false, res, statusCode.BAD_REQUEST, responseMessage.NEW_PASSWORD_MUST_DIFFERENT_FROM_OLD_PASSWORD);
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.NEW_PASSWORD_MUST_DIFFERENT_FROM_OLD_PASSWORD
+      );
     }
 
     user.password = await hashPassword(newPassword);
     await user.save();
 
-    return response(true, res, statusCode.SUCCESS, responseMessage.PASSWORD_RESET);
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.PASSWORD_RESET
+    );
   } catch (err) {
-    return response(true, res, statusCode.BAD_REQUEST, responseMessage.INVALID_TOKEN);
+    return response(
+      true,
+      res,
+      statusCode.BAD_REQUEST,
+      responseMessage.INVALID_TOKEN
+    );
   }
 };
 
@@ -185,27 +296,52 @@ const changePassword = async (req, res) => {
 
     const user = await findUserByEmail(email);
     if (!user) {
-      return response(false, res, statusCode.NOT_FOUND, responseMessage.INVALID_EMAIL);
+      return response(
+        false,
+        res,
+        statusCode.NOT_FOUND,
+        responseMessage.INVALID_EMAIL
+      );
     }
 
     const comparePassword = await bcrypt.compare(oldPassword, user.password);
     if (!comparePassword) {
-      return response(false, res, statusCode.BAD_REQUEST, responseMessage.INCORRECT_OLD_PASSWORD);
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.INCORRECT_OLD_PASSWORD
+      );
     }
 
     if (newPassword === oldPassword) {
-      return response(false, res, statusCode.BAD_REQUEST, responseMessage.NEW_PASSWORD_MUST_DIFFERENT_FROM_OLD_PASSWORD);
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.NEW_PASSWORD_MUST_DIFFERENT_FROM_OLD_PASSWORD
+      );
     }
 
     if (newPassword !== confirmPassword) {
-      return response(false, res, statusCode.BAD_REQUEST, responseMessage.NEW_PASSWORD_AND_CONFIRM_PASSWORD_NOT_MATCH);
+      return response(
+        false,
+        res,
+        statusCode.BAD_REQUEST,
+        responseMessage.NEW_PASSWORD_AND_CONFIRM_PASSWORD_NOT_MATCH
+      );
     }
 
     await updateUserById(user._id, {
       password: await hashPassword(newPassword),
     });
 
-    return response(true, res, statusCode.SUCCESS, responseMessage.PASSWORD_CHANGED);
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.PASSWORD_CHANGED
+    );
   } catch (err) {
     return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
@@ -232,7 +368,6 @@ const resendVerificationEmail = async (req, res) => {
         statusCode.BAD_REQUEST,
         responseMessage.USER_ALREADY_VERIFIED
       );
-
     }
 
     const token = generateToken({ email }, "1h", "verifyEmail");
@@ -251,22 +386,16 @@ const resendVerificationEmail = async (req, res) => {
         statusCode.INTERNAL_SERVER_ERROR,
         responseMessage.ERROR_WHILE_SEND_EMAIL
       );
-
     }
 
-      return response(
-        true,
-        res,
-        statusCode.SUCCESS,
-        responseMessage.VERIFY_EMAIL_RESENT
-      );
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.VERIFY_EMAIL_RESENT
+    );
   } catch (err) {
-      return response(
-        false,
-        res,
-        statusCode.INTERNAL_SERVER_ERROR,
-        err.message
-      );
+    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 
@@ -295,23 +424,17 @@ const uploadImage = async (req, res) => {
         statusCode.NOT_FOUND,
         responseMessage.USER_NOT_FOUND
       );
-
     }
 
-      return response(
-        true,
-        res,
-        statusCode.SUCCESS,
-        responseMessage.PROFILE_PICTURE_UPDATED,
-        updatedUser
-      );
+    return response(
+      true,
+      res,
+      statusCode.SUCCESS,
+      responseMessage.PROFILE_PICTURE_UPDATED,
+      updatedUser
+    );
   } catch (err) {
-      return response(
-        false,
-        res,
-        statusCode.INTERNAL_SERVER_ERROR,
-        err.message
-      );
+    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 

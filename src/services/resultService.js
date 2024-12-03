@@ -2,110 +2,105 @@ const Result = require("../models/resultModel");
 const mongoose = require("mongoose");
 
 const findResultByExamAndStudent = async (examId, studentId) => {
-    try {
-        
-    
-  return await Result.findOne({ examId, studentId });} catch (error) {
-        return null;
-    }
+  try {
+    return await Result.findOne({ examId, studentId });
+  } catch (error) {
+    return null;
+  }
 };
 
 const createResult = async (resultData) => {
-    try {
-        
-    
-  return await Result.create(resultData);} catch (error) {
-        return null;
-    }
+  try {
+    return await Result.create(resultData);
+  } catch (error) {
+    return null;
+  }
 };
 
 const getGivenExamsByStudentId = async (studentId) => {
-    try {
-        
-    
-  return await Result.aggregate([
-    {
-      $match: {
-        studentId: new mongoose.Types.ObjectId(studentId),
-        status: "completed",
+  try {
+    return await Result.aggregate([
+      {
+        $match: {
+          studentId: new mongoose.Types.ObjectId(studentId),
+          status: "completed",
+        },
       },
-    },
-    {
-      $lookup: {
-        from: "exams",
-        localField: "examId",
-        foreignField: "_id",
-        as: "examDetails",
+      {
+        $lookup: {
+          from: "exams",
+          localField: "examId",
+          foreignField: "_id",
+          as: "examDetails",
+        },
       },
-    },
-    { $unwind: "$examDetails" },
-    {
-      $match: { "examDetails.isDeleted": false },
-    },
-    {
-      $lookup: {
-        from: "results",
-        let: { examId: "$examId" },
-        pipeline: [
-          { $match: { $expr: { $eq: ["$examId", "$$examId"] } } },
-          { $sort: { score: -1 } },
-          {
-            $group: {
-              _id: "$score",
-              students: { $push: "$studentId" },
+      { $unwind: "$examDetails" },
+      {
+        $match: { "examDetails.isDeleted": false },
+      },
+      {
+        $lookup: {
+          from: "results",
+          let: { examId: "$examId" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$examId", "$$examId"] } } },
+            { $sort: { score: -1 } },
+            {
+              $group: {
+                _id: "$score",
+                students: { $push: "$studentId" },
+              },
             },
-          },
-          { $sort: { _id: -1 } },
-          {
-            $group: {
-              _id: null,
-              ranks: {
-                $push: {
-                  score: "$_id",
-                  students: "$students",
+            { $sort: { _id: -1 } },
+            {
+              $group: {
+                _id: null,
+                ranks: {
+                  $push: {
+                    score: "$_id",
+                    students: "$students",
+                  },
                 },
               },
             },
-          },
-          { $unwind: { path: "$ranks", includeArrayIndex: "rank" } },
-          { $unwind: "$ranks.students" },
-          {
-            $project: {
-              studentId: "$ranks.students",
-              score: "$ranks.score",
-              rank: { $add: ["$rank", 1] },
-            },
-          },
-        ],
-        as: "rankDetails",
-      },
-    },
-    {
-      $project: {
-        _id: 0,
-        examId: 1,
-        subjectName: "$examDetails.subjectName",
-        score: 1,
-        rank: {
-          $arrayElemAt: [
-            "$rankDetails.rank",
+            { $unwind: { path: "$ranks", includeArrayIndex: "rank" } },
+            { $unwind: "$ranks.students" },
             {
-              $indexOfArray: ["$rankDetails.studentId", studentId],
+              $project: {
+                studentId: "$ranks.students",
+                score: "$ranks.score",
+                rank: { $add: ["$rank", 1] },
+              },
             },
           ],
+          as: "rankDetails",
         },
-        status: 1,
       },
-    },
-  ]);} catch (error) {
-        return null;
-    }
+      {
+        $project: {
+          _id: 0,
+          examId: 1,
+          subjectName: "$examDetails.subjectName",
+          score: 1,
+          rank: {
+            $arrayElemAt: [
+              "$rankDetails.rank",
+              {
+                $indexOfArray: ["$rankDetails.studentId", studentId],
+              },
+            ],
+          },
+          status: 1,
+        },
+      },
+    ]);
+  } catch (error) {
+    return null;
+  }
 };
 
 const getAllExamGivenStudents = async () => {
-    try {
-        
-    
+  try {
     return await Result.aggregate([
       {
         $group: {
@@ -132,13 +127,14 @@ const getAllExamGivenStudents = async () => {
           role: "$studentDetails.role",
         },
       },
-    ]);} catch (error) {
-        return null;
-    }
-}
+    ]);
+  } catch (error) {
+    return null;
+  }
+};
 
 const getResultsByStudentId = async (studentId) => {
-    try {
+  try {
     return await Result.aggregate([
       {
         $match: { studentId: new mongoose.Types.ObjectId(studentId) },
@@ -222,11 +218,17 @@ const getResultsByStudentId = async (studentId) => {
       {
         $sort: { score: -1 },
       },
-    ]);    
-} catch (error) {
-        console.log("error", error);
-        return null;
-    } 
-}
+    ]);
+  } catch (error) {
+    console.log("error", error);
+    return null;
+  }
+};
 
-module.exports = {findResultByExamAndStudent, createResult, getGivenExamsByStudentId, getAllExamGivenStudents, getResultsByStudentId};
+module.exports = {
+  findResultByExamAndStudent,
+  createResult,
+  getGivenExamsByStudentId,
+  getAllExamGivenStudents,
+  getResultsByStudentId,
+};
