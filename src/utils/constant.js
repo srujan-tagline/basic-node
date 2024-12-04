@@ -37,7 +37,7 @@ const responseMessage = Object.freeze({
   INCORRECT_OLD_PASSWORD: "Old Password is incorrect.",
   PASSWORD_CHANGED: "Password change successfully.",
   ERROR_WHILE_SEND_EMAIL: "Error while sending email.",
-  VERIFY_EMAIL_RESENT: "Verification email resent successfully.",
+  VERIFY_EMAIL_SENT: "Verification email sent. Please verify your self.",
   PROFILE_PICTURE_UPDATED: "Profile picture updated successfully.",
   EXAM_NOT_FOUND: "Exam is not found.",
   ALREADY_GIVEN_EXAM: "You have already given this exam.",

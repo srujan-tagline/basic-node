@@ -20,6 +20,34 @@ const signup = async (req, res) => {
 
     const existingUser = await findUserByEmail(email);
     if (existingUser) {
+
+      if (!existingUser.isVerified) {
+        const token = generateToken({ email }, "1h", "verifyEmail");
+        const verificationLink = `${process.env.BASE_URL}/auth/verify-email?token=${token}`;
+
+        try {
+          await sendEmail(
+            email,
+            "Verify Your Email",
+            `Click here to verify: ${verificationLink}`
+          );
+
+          return response(
+            false,
+            res,
+            statusCode.FORBIDDEN,
+            responseMessage.VERIFY_EMAIL_SENT
+          );
+        } catch (err) {
+          return response(
+            false,
+            res,
+            statusCode.INTERNAL_SERVER_ERROR,
+            responseMessage.ERROR_WHILE_SEND_EMAIL
+          );
+        }
+      }
+
       return response(
         false,
         res,
@@ -63,7 +91,7 @@ const signup = async (req, res) => {
       responseMessage.SIGNUP_SUCCESSFUL
     );
   } catch (err) {
-    return res.status(500).json({ message: err.message });
+    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
   }
 };
 
@@ -71,20 +99,7 @@ const verifyEmail = async (req, res) => {
   try {
     const { token } = req.query;
 
-    let decode;
-    try {
-      decode = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      if (err.name === "TokenExpiredError") {
-        return response(
-          false,
-          res,
-          statusCode.BAD_REQUEST,
-          responseMessage.TOKEN_EXPIRED_REQUEST_NEW_MAIL
-        );
-      }
-      throw err;
-    }
+    const decode = jwt.verify(token, process.env.JWT_SECRET);
 
     if (decode.purpose !== "verifyEmail") {
       return response(
@@ -128,7 +143,7 @@ const verifyEmail = async (req, res) => {
       false,
       res,
       statusCode.BAD_REQUEST,
-      responseMessage.FAILED_TO_VERIFY_USER
+      responseMessage.INVALID_TOKEN
     );
   }
 };
@@ -148,12 +163,32 @@ const login = async (req, res) => {
     }
 
     if (!user.isVerified) {
-      return response(
-        false,
-        res,
-        statusCode.BAD_REQUEST,
-        responseMessage.USER_NOT_VERIFIED
-      );
+
+      const token = generateToken({ email }, "1h", "verifyEmail");
+      const verificationLink = `${process.env.BASE_URL}/auth/verify-email?token=${token}`;
+
+      try {
+        await sendEmail(
+          email,
+          "Verify Your Email",
+          `Click here to verify: ${verificationLink}`
+        );
+
+        return response(
+          false,
+          res,
+          statusCode.FORBIDDEN,
+          responseMessage.VERIFY_EMAIL_SENT
+        );
+      } catch (err) {
+        return response(
+          false,
+          res,
+          statusCode.INTERNAL_SERVER_ERROR,
+          responseMessage.ERROR_WHILE_SEND_EMAIL
+        );
+      }
+
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -347,58 +382,6 @@ const changePassword = async (req, res) => {
   }
 };
 
-const resendVerificationEmail = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    const user = await findUserByEmail(email);
-    if (!user) {
-      return response(
-        false,
-        res,
-        statusCode.NOT_FOUND,
-        responseMessage.INVALID_EMAIL
-      );
-    }
-
-    if (user.isVerified) {
-      return response(
-        false,
-        res,
-        statusCode.BAD_REQUEST,
-        responseMessage.USER_ALREADY_VERIFIED
-      );
-    }
-
-    const token = generateToken({ email }, "1h", "verifyEmail");
-    const verificationLink = `${process.env.BASE_URL}/auth/verify-email?token=${token}`;
-
-    try {
-      await sendEmail(
-        email,
-        "Verify Your Email",
-        `Click here to verify: ${verificationLink}`
-      );
-    } catch (err) {
-      return response(
-        false,
-        res,
-        statusCode.INTERNAL_SERVER_ERROR,
-        responseMessage.ERROR_WHILE_SEND_EMAIL
-      );
-    }
-
-    return response(
-      true,
-      res,
-      statusCode.SUCCESS,
-      responseMessage.VERIFY_EMAIL_RESENT
-    );
-  } catch (err) {
-    return response(false, res, statusCode.INTERNAL_SERVER_ERROR, err.message);
-  }
-};
-
 const uploadImage = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -446,5 +429,4 @@ module.exports = {
   resetPassword,
   changePassword,
   uploadImage,
-  resendVerificationEmail,
 };

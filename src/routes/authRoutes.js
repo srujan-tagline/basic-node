@@ -6,7 +6,6 @@ const {
   forgetPassword,
   resetPassword,
   changePassword,
-  resendVerificationEmail
 } = require("../controllers/authController");
 const {
   signupSchema,
@@ -29,6 +28,5 @@ router.post(
 );
 router.post("/reset-password", validate(resetPasswordSchema) ,resetPassword);
 router.post("/change-password", validate(changePasswordSchema) ,changePassword);
-router.post("/resend-verification-email", validate(emailVerificationSchema), resendVerificationEmail);
 
 module.exports = router;
